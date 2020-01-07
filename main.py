@@ -4,7 +4,7 @@ from http.cookiejar import CookieJar
 import config as cfg
 import pandas as pd
 
-ACCEPTED_PROFILES = pd.DataFrame(columns=['naam', 'telefoon', 'geboortedatum', 'email', '#verbanden', 'verbanden', '#fotos'])
+ACCEPTED_PROFILES = pd.DataFrame(columns=['Naam', 'verbanden', '#verbanden', 'Telefoon', 'Geboortedatum', 'E-mail'])
 
 def main():
 	url = "https://www.dizkartes.nl/verbanden/2830"
@@ -37,8 +37,6 @@ def main():
 		print(profiel_url)
 		page = bs.BeautifulSoup(br.open(base_url+profiel_url), 'html5lib')
 
-		parse_profile(page)
-
 		verbanden = []
 		for verband_div in page.findAll("div", {"class": "col-xs-6"}):
 			for verband in verband_div.select('a'):
@@ -51,7 +49,7 @@ def main():
 			print("Ignored person")
 			continue
 		if any(elem in accept for elem in verbanden):
-			parse_profile(page)
+			parse_profile(page, verbanden)
 			print("Added person")
 			continue
 		else:
@@ -63,20 +61,36 @@ def main():
 			if ans == -1:
 				ignore.update(verbanden)			# voeg alle verbanden toe aan de ignore list
 			else:
-				parse_profile(page)
+				parse_profile(page, verbanden)
 				accept.add(verbanden[ans])	 	# voeg toe aan accepted.
 				verbanden.remove(verbanden[ans])
 				ignore.update(verbanden)				# voeg de rest van de verbanden toe aan ignored
+	return
 
 
-def parse_profile(page):
+def parse_profile(page, verbanden):
 	global ACCEPTED_PROFILES
+	data = {}
 
-	page2 = page.find("div", {'class': ["col-sm-9", "spacing-small"]})
-	tag = page.find(lambda tag: tag.name == 'div' and tag['class'] == ['col-sm-9', 'spacing-small', ''])
-	print(page)
+	data['Naam'] = page.findAll("h1")[1].getText()
+	data['verbanden'] = verbanden
+	data['#verbanden'] = len(verbanden)
 
+	""" 
+	Vanwege de grafwebsite die dizkartes heeft is een oplossing die werkt. Lelijk als de nacht.
+	Deze fixt geboortedatum, email en nummer.
+	"""
+	info_divs = page.find("div", {'class': ["col-sm-9 spacing-small"]}).findChildren()
+	add_next = False
+	for item in info_divs:
+		if add_next:
+			data[string] = str.strip(item.getText())
+			add_next = False
+		string = str.strip(item.getText())
+		if string in ACCEPTED_PROFILES.columns:
+			add_next = True
 
+	ACCEPTED_PROFILES = ACCEPTED_PROFILES.append(data, ignore_index=True)
 
 main()
-print(ACCEPTED_PROFILES)
+ACCEPTED_PROFILES.to_excel("output.xlsx")
