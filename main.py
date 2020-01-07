@@ -1,11 +1,10 @@
 import mechanize
 import bs4 as bs
-import urllib
 from http.cookiejar import CookieJar
 import config as cfg
+import pandas as pd
 
-
-ACCEPTED_PROFILES = set()
+ACCEPTED_PROFILES = pd.DataFrame(columns=['naam', 'telefoon', 'geboortedatum', 'email', '#verbanden', 'verbanden', '#fotos'])
 
 def main():
 	url = "https://www.dizkartes.nl/verbanden/2830"
@@ -38,6 +37,8 @@ def main():
 		print(profiel_url)
 		page = bs.BeautifulSoup(br.open(base_url+profiel_url), 'html5lib')
 
+		parse_profile(page)
+
 		verbanden = []
 		for verband_div in page.findAll("div", {"class": "col-xs-6"}):
 			for verband in verband_div.select('a'):
@@ -50,26 +51,32 @@ def main():
 			print("Ignored person")
 			continue
 		if any(elem in accept for elem in verbanden):
-			add_profile(page)
+			parse_profile(page)
 			print("Added person")
 			continue
 		else:
 			for i in range(len(verbanden)):
 				if verbanden[i] not in ignore:
 					print("[%d] -> %s" % (i, verbanden[i]))
-			ans = input(":")
+			ans = int(input(":"))
 
 			if ans == -1:
-				ignore.add(set(verbanden))			# voeg alle verbanden toe aan de ignore list
+				ignore.update(verbanden)			# voeg alle verbanden toe aan de ignore list
 			else:
-				accept.add(verbanden[int(ans)])	 	# voeg toe aan accepted.
-				verbanden.remove(verbanden[int(ans)])
+				parse_profile(page)
+				accept.add(verbanden[ans])	 	# voeg toe aan accepted.
+				verbanden.remove(verbanden[ans])
 				ignore.update(verbanden)				# voeg de rest van de verbanden toe aan ignored
-				add_profile(page)
 
-def add_profile(page):
+
+def parse_profile(page):
 	global ACCEPTED_PROFILES
-	ACCEPTED_PROFILES.add(page)
+
+	page2 = page.find("div", {'class': ["col-sm-9", "spacing-small"]})
+	tag = page.find(lambda tag: tag.name == 'div' and tag['class'] == ['col-sm-9', 'spacing-small', ''])
+	print(page)
+
+
 
 main()
 print(ACCEPTED_PROFILES)
